@@ -25,6 +25,11 @@ import org.apache.maven.plugin.MojoExecutionException;
 
 import com.soebes.maven.plugins.mlv.licenses.LicenseInformation;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+
 
 /**
  * This goal is intended to check the artifacts during the prepare-package phase and
@@ -43,7 +48,10 @@ public class LicenseVerifierMojo extends AbstractLicenseVerifierPlugIn {
 
         if (licenseData.hasExcludedByConfiguration()) {
             if (isVerbose()) {
-                for (LicenseInformation item : licenseData.getValid()) {
+                for (LicenseInformation item : licenseData.getExcludedByConfiguration()) {
+                    if(outputToFile()) {
+                        writeToFile("EXCLUDED: " + item.getArtifact().getId());
+                    }
                     getLog().warn("The artifact: " + item.getArtifact().getId() + " has been execluded by the configuration.");
                 }
             }
@@ -51,27 +59,58 @@ public class LicenseVerifierMojo extends AbstractLicenseVerifierPlugIn {
 
         if (licenseData.hasValid()) {
             for (LicenseInformation item : licenseData.getValid()) {
+                if(outputToFile()) {
+                    writeToFile("VALID: " + item.getProject().getId());
+                }
+
                 if (isVerbose()) {
-                    getLog().info("   ]VALID[   (" + item.getArtifact().getScope() + ") The artifact " + item.getProject().getId() + " has a license which is categorized as valid");
+                    getLog().info("   ]VALID[    (" + item.getArtifact().getScope() + ") The artifact " + item.getProject().getId() + " has a license which is categorized as valid");
                 }
             }
         }
 
         if (licenseData.hasInvalid()) {
             for (LicenseInformation item : licenseData.getInvalid()) {
-                getLog().error("  ]INVALID[ (" + item.getArtifact().getScope() + ") The artifact " + item.getProject().getId() + " has a license which is categorized as invalid");
+                if(outputToFile()) {
+                    writeToFile("INVALID: " + item.getProject().getId());
+                }
+                getLog().warn("]INVALID[  (" + item.getArtifact().getScope() + ") The artifact " + item.getProject().getId() + " has a license which is categorized as invalid");
             }
         }
 
         if (licenseData.hasWarning()) {
             for (LicenseInformation item : licenseData.getWarning()) {
-                getLog().warn("]WARNING[ (" + item.getArtifact().getScope() + ") The artifact " + item.getProject().getId() + " has a license which is categorized as warning");
+                if(outputToFile()) {
+                    writeToFile("WARNING: " + item.getProject().getId());
+                }
+                getLog().warn("]WARNING[  (" + item.getArtifact().getScope() + ") The artifact " + item.getProject().getId() + " has a license which is categorized as warning");
+            }
+        }
+
+        if (licenseData.hasMultiple()) {
+            for (LicenseInformation item : licenseData.getMultiple()) {
+                if(outputToFile()) {
+                    writeToFile("MULTIPLE: " + item.getProject().getId());
+                }
+                getLog().warn("]MULTIPLE[ (" + item.getArtifact().getScope() + ") The artifact " + item.getProject().getId() + " has a license which is categorized as multiple");
+            }
+        }
+
+        if (licenseData.hasNoLicense()) {
+            for (LicenseInformation item : licenseData.getNoLicense()) {
+                if(outputToFile()) {
+                    writeToFile("NONE: " + item.getProject().getId());
+                }
+                getLog().warn("]NONE[     (" + item.getArtifact().getScope() + ") The artifact " + item.getProject().getId() + " has a license which is categorized as no license");
             }
         }
 
         if (licenseData.hasUnknown()) {
             for (LicenseInformation item : licenseData.getUnknown()) {
-                getLog().warn("]UNKNOWN[ (" + item.getArtifact().getScope() + ") The artifact " + item.getProject().getId() + " has a license which is categorized as unknown");
+                if(outputToFile()) {
+                    writeToFile("UNKNOWN: " + item.getProject().getId());
+                }
+                getLog().warn("]UNKNOWN[  (" + item.getArtifact().getScope() + ") The artifact " + item.getProject().getId() + " has a license which is categorized as unknown");
             }
         }
 
@@ -89,6 +128,17 @@ public class LicenseVerifierMojo extends AbstractLicenseVerifierPlugIn {
 
         if (licenseData.hasUnknown() && failOnUnknown) {
             throw new MojoExecutionException("A license which is categorized as UNKNOWN has been found.");
+        }
+    }
+
+    private void writeToFile(String line) {
+        try {
+            FileWriter fstream = new FileWriter(outputFile.getAbsolutePath(),true);
+            BufferedWriter out = new BufferedWriter(fstream);
+            out.write(line + "\n");
+            out.close();
+        } catch (IOException e) {
+            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
         }
     }
 

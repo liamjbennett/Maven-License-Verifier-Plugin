@@ -44,8 +44,11 @@ public class LicenseValidator {
 
     private boolean strictChecking;
 
+    private boolean scanSourceFiles;
+
     public LicenseValidator(LicensesContainer licensesContainer) {
-        strictChecking = false;
+        this.strictChecking = false;
+        this.scanSourceFiles = false;
         this.licensesContainer = licensesContainer;
     }
 
@@ -64,7 +67,7 @@ public class LicenseValidator {
     }
 
     public void setValid(List<LicenseItem> valid) {
-        this.licensesContainer.getInvalid().setLicenses(valid);
+        this.licensesContainer.getValid().setLicenses(valid);
     }
 
     /**
@@ -229,7 +232,9 @@ public class LicenseValidator {
             result = false;
         } else {
             for (License license : licenses) {
-                if (!isValid(license)) {
+                if (isValid(license) && !isWarning(license) && !isInvalid(license)) {
+                    result = true;
+                } else {
                     result = false;
                 }
             }
@@ -309,7 +314,10 @@ public class LicenseValidator {
             result = false;
         } else {
             for (License license : licenses) {
-                if (!isInvalid(license)) {
+                if (isInvalid(license)) {
+                    result = true;
+                    break;
+                } else {
                     result = false;
                 }
             }
@@ -331,7 +339,9 @@ public class LicenseValidator {
             result = false;
         } else {
             for (License license : licenses) {
-                if (!isWarning(license)) {
+                if (isWarning(license)) {
+                    result = true;
+                } else {
                     result = false;
                 }
             }
@@ -356,33 +366,59 @@ public class LicenseValidator {
      */
     public boolean isUnknown(ArrayList<License> licenses) {
         boolean result = false;
-        if (licenses.isEmpty()) {
-            result = true;
-        } else {
-            int changeValid = 0;
-            int changeInvalid = 0;
-            int changeWarning = 0;
-            for (License license : licenses) {
-                if (isValid(license)) {
-                    changeValid++;
-                }
-                if (isInvalid(license)) {
-                    changeInvalid++;
-                }
-                if (isWarning(license)) {
-                    changeWarning++;
-                }
-            }
 
-            if (changeValid == licenses.size()) {
-                result = false;
-            } else if (changeInvalid == licenses.size()) {
-                result = false;
-            } else if (changeWarning == licenses.size()) {
-                result = false;
-            } else {
-                result = true;
+        //if (licenses.isEmpty()) {
+        //    System.out.println("No licences");
+        //    result = true;
+        //}
+
+        int changeValid = 0;
+        int changeInvalid = 0;
+        int changeWarning = 0;
+        for (License license : licenses) {
+            if (isValid(license)) {
+                changeValid++;
             }
+            if (isInvalid(license)) {
+                changeInvalid++;
+            }
+            if (isWarning(license)) {
+                changeWarning++;
+            }
+        }
+
+        if( (changeValid == 0) && (changeInvalid == 0) && (changeWarning == 0) && (licenses.size() != 0) ) {
+            result = true;
+        }
+
+        return result;
+    }
+
+    public boolean isMultiple(ArrayList<License> licenses) {
+        boolean result = false;
+        int changeValid = 0;
+        int changeInvalid = 0;
+        int changeWarning = 0;
+        for (License license : licenses) {
+            if (isValid(license)) {
+                changeValid++;
+            }
+            if (isInvalid(license)) {
+                changeInvalid++;
+            }
+            if (isWarning(license)) {
+                changeWarning++;
+            }
+        }
+
+        if (changeValid == licenses.size()) {
+            result = false;
+        } else if (changeInvalid == licenses.size()) {
+            result = false;
+        } else if (changeWarning == licenses.size()) {
+            result = false;
+        } else {
+            result = true;
         }
         return result;
     }
@@ -474,7 +510,7 @@ public class LicenseValidator {
     private boolean checkNames(LicenseItem item, License cl) {
         boolean result = false;
         for (String checkName : item.getNames()) {
-            if (checkName.equals(cl.getName())) {
+            if (checkName.contains(cl.getName())) {
                 result = true;
             }
         }
@@ -487,5 +523,13 @@ public class LicenseValidator {
 
     public boolean isStrictChecking() {
         return strictChecking;
+    }
+
+    public void setScanSourceFiles(boolean scanSourceFiles) {
+        this.scanSourceFiles = scanSourceFiles;
+    }
+
+    public boolean isScanSourceFiles() {
+        return scanSourceFiles;
     }
 }

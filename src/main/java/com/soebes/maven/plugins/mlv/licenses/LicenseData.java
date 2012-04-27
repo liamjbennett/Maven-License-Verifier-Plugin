@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.maven.artifact.resolver.filter.ArtifactFilter;
+import org.apache.maven.model.License;
 import org.apache.maven.plugin.logging.Log;
 
 import com.soebes.maven.plugins.mlv.filter.PatternExcludeFilter;
@@ -39,6 +40,8 @@ public class LicenseData {
     private ArrayList<LicenseInformation> valid;
     private ArrayList<LicenseInformation> invalid;
     private ArrayList<LicenseInformation> warning;
+    private ArrayList<LicenseInformation> multiple;
+    private ArrayList<LicenseInformation> noLicense;
     private ArrayList<LicenseInformation> unknown;
     private ArrayList<LicenseInformation> excludedByConfiguration;
 
@@ -59,6 +62,8 @@ public class LicenseData {
         setInvalid(new ArrayList<LicenseInformation>());
         setWarning(new ArrayList<LicenseInformation>());
         setUnknown(new ArrayList<LicenseInformation>());
+        setMultiple(new ArrayList<LicenseInformation>());
+        setNoLicense(new ArrayList<LicenseInformation>());
         setExcludedByConfiguration(new ArrayList<LicenseInformation>());
         setExcludes(excludes);
         setLog(log);
@@ -247,19 +252,25 @@ public class LicenseData {
         for (LicenseInformation license : getLicenseInformations()) {
             if (!filter.include(license.getArtifact())) {
                 getExcludedByConfiguration().add(license);
-                getLog().debug("artifact " + license.getArtifact().getId() + " exculded by configuration.");
+                getLog().debug("artifact " + license.getArtifact().getId() + " excluded by configuration.");
                 continue;
             }
 
-            if (getLicenseValidator().isValid(license.getLicenses())) {
-                getValid().add(license);
-                getLog().debug("artifact " + license.getArtifact().getId() + " has been categorized as Valid.");
+            if (license.getLicenses().size() == 0) {
+                getNoLicense().add(license);
+                getLog().debug("artifact " + license.getArtifact().getId() + " has been categorized as No License.");
             } else if (getLicenseValidator().isInvalid(license.getLicenses())) {
                 getInvalid().add(license);
                 getLog().debug("artifact " + license.getArtifact().getId() + " has been categorized as Invalid.");
             } else if (getLicenseValidator().isWarning(license.getLicenses())) {
                 getWarning().add(license);
                 getLog().debug("artifact " + license.getArtifact().getId() + " has been categorized as Warning.");
+            } else if (getLicenseValidator().isMultiple(license.getLicenses())) {
+                getMultiple().add(license);
+                getLog().debug("artifact " + license.getArtifact().getId() + " has been categorized as Multiple");
+            } else if (getLicenseValidator().isValid(license.getLicenses())) {
+                getValid().add(license);
+                getLog().debug("artifact " + license.getArtifact().getId() + " has been categorized as Valid.");
             } else if (getLicenseValidator().isUnknown(license.getLicenses())) {
                 getUnknown().add(license);
                 getLog().debug("artifact " + license.getArtifact().getId() + " has been categorized as Unknown.");
@@ -278,6 +289,14 @@ public class LicenseData {
     }
     public boolean hasUnknown() {
         return !getUnknown().isEmpty();
+    }
+
+    public boolean hasMultiple() {
+        return !getMultiple().isEmpty();
+    }
+
+    public boolean hasNoLicense() {
+        return !getNoLicense().isEmpty();
     }
 
     public boolean hasExcludedByConfiguration() {
@@ -328,8 +347,24 @@ public class LicenseData {
         this.unknown = unknown;
     }
 
+    public void setMultiple(ArrayList<LicenseInformation> multiple) {
+        this.multiple = multiple;
+    }
+
+    public void setNoLicense(ArrayList<LicenseInformation> noLicense) {
+        this.noLicense = noLicense;
+    }
+
     public ArrayList<LicenseInformation> getUnknown() {
         return unknown;
+    }
+
+    public ArrayList<LicenseInformation> getMultiple() {
+        return multiple;
+    }
+
+    public ArrayList<LicenseInformation> getNoLicense() {
+        return noLicense;
     }
 
     public void setExcludedByConfiguration(ArrayList<LicenseInformation> excludedByConfiguration) {

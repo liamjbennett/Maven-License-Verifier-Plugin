@@ -31,6 +31,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
+import com.soebes.maven.plugins.mlv.licenses.*;
 import org.apache.maven.artifact.Artifact;
 import org.apache.maven.artifact.repository.ArtifactRepository;
 import org.apache.maven.model.License;
@@ -41,11 +42,9 @@ import org.apache.maven.project.MavenProjectBuilder;
 import org.apache.maven.project.ProjectBuildingException;
 import org.codehaus.plexus.util.xml.pull.XmlPullParserException;
 
-import com.soebes.maven.plugins.mlv.licenses.LicenseData;
-import com.soebes.maven.plugins.mlv.licenses.LicenseInformation;
-import com.soebes.maven.plugins.mlv.licenses.LicenseValidator;
-import com.soebes.maven.plugins.mlv.licenses.LicensesFile;
 import com.soebes.maven.plugins.mlv.model.LicensesContainer;
+
+import javax.swing.plaf.basic.BasicInternalFrameTitlePane;
 
 /**
  * @author <a href="mailto:kama@soebes.de">Karl Heinz Marbaise</a>
@@ -132,6 +131,21 @@ public abstract class AbstractLicenseVerifierPlugIn extends AbstractMojo {
     protected boolean failOnUnknown;
 
     /**
+     * The plugin will also scan all source files to look for license headers.
+     * @parameter expression="${mlv.scanSourceFiles}" default-value="false"
+     */
+    protected boolean scanSourceFiles;
+
+    /**
+     * The plugin will allow the optional output to a file, otherwise standard
+     * build output.
+     *
+     * @parameter expression="${mlv.outputFile}"
+     *            default-value="${project.basedir}/license-verify"
+     */
+    protected File outputFile;
+
+    /**
      * The name of the licenses.xml file which will be used to categorize
      * the licenses of the artifacts.
      * @parameter	expression="${mlv.licenseFile}"
@@ -172,6 +186,8 @@ public abstract class AbstractLicenseVerifierPlugIn extends AbstractMojo {
 
     protected LicenseData licenseData = null;
 
+    protected SourceFileProcessor sourceFileProcessor = null;
+
     protected void loadLicenseData() throws MojoExecutionException {
         getLog().debug("loadLicenseData()");
         LicensesContainer licenseContainer = loadLicensesFile();
@@ -180,12 +196,19 @@ public abstract class AbstractLicenseVerifierPlugIn extends AbstractMojo {
         //the transitive dependencies.
         Set<?> depArtifacts = this.project.getArtifacts();
 
+        if(scanSourceFiles) {
+            sourceFileProcessor = new SourceFileProcessor(remoteRepositories.get(0), licenseContainer);
+        }
+
         //Get all the informations about the licenses of the artifacts.
         ArrayList<LicenseInformation> licenseInformations = getDependArtifacts(depArtifacts);
 
         LicenseValidator licenseValidator = new LicenseValidator(licenseContainer);
         licenseValidator.setStrictChecking(stricktChecking);
 
+        if(scanSourceFiles) {
+            licenseValidator.setScanSourceFiles(true);
+        }
 
         Collections.sort(licenseInformations, new ArtifactComperator());
 
@@ -228,13 +251,25 @@ public abstract class AbstractLicenseVerifierPlugIn extends AbstractMojo {
            li.setProject(depProject);
 
            //Add all licenses of the particular artifact to it's other informations.
-           List<?> licenses = depProject.getLicenses();
+           //Get the licenses as defined in the license section of the pom
+           List<?> pomLicenses = depProject.getLicenses();
+           ArrayList licenses = new ArrayList();
+           licenses.addAll(pomLicenses);
+
+           if(scanSourceFiles) {
+               getLog().debug("Scanning source files for: " + depArt.getArtifactId());
+
+               licenses.addAll(sourceFileProcessor.processArtifact(depArt));
+           }
+
            Iterator<?> licenseIter = licenses.iterator();
            while (licenseIter.hasNext())
            {
               License license = (License) licenseIter.next();
               li.addLicense(license);
            }
+
+
            licenseInformations.add(li);
         }
         return licenseInformations;
@@ -299,5 +334,17 @@ public abstract class AbstractLicenseVerifierPlugIn extends AbstractMojo {
 
     public boolean isVerbose() {
         return verbose;
+    }
+
+    public void setOutputFile(File outputFile) {
+        this.outputFile = outputFile;
+    }
+
+    public File getOutputFile() {
+        return outputFile;
+    }
+
+    public boolean outputToFile() {
+        return outputFile != null;
     }
 }
